@@ -47,7 +47,7 @@ public:
 
     void initial_optimization();
 
-    void initialize_options();
+    void add_line();
 
     bool solved();
 

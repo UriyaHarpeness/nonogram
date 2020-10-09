@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "nonorgram/Nonogram.h"
+#include "nonogram/Nonogram.h"
 
 using namespace std;
 

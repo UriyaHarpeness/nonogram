@@ -199,11 +199,24 @@ void Nonogram::initial_optimization() {
     }
 }
 
-void Nonogram::initialize_options() {
-    for_each(m_lines.begin(), m_lines.end(), [&](Line &line) {
-        line.generate_options(
-                (line.m_direction == HORIZONTAL) ? get_horizontal(line.m_index) : get_vertical(line.m_index));
-    }); // todo: use known, speed up things.
+void Nonogram::add_line() {
+    auto &line = m_lines[m_referred_number];
+
+    Logger(INFO).Get() << "Adding line (" << ((line.m_direction == HORIZONTAL) ? "horizontal" : "vertical") << " "
+                       << line.m_index << ") " << m_referred_number << " -> " << m_referred_number + 1 << endl;
+
+    line.generate_options((line.m_direction == HORIZONTAL) ? get_horizontal(line.m_index) : get_vertical(line.m_index));
+
+    if (line.m_direction == HORIZONTAL) {
+        auto known = line.merge_options(get_horizontal(line.m_index));
+        set_horizontal(known, line.m_index);
+
+    } else {
+        auto known = line.merge_options(get_vertical(line.m_index));
+        set_vertical(known, line.m_index);
+    }
+
+    m_referred_number++;
 }
 
 bool Nonogram::solved() {
@@ -218,7 +231,8 @@ bool Nonogram::solved() {
 void Nonogram::step() {
     Known known;
 
-    for (auto &line : m_lines) {
+    for (int i = 0; i < m_referred_number; i++) {
+        auto &line = m_lines[i];
         if (line.m_direction == HORIZONTAL) {
             if (horizontal_changed(line.m_index)) {
                 line.filter(get_horizontal(line.m_index));
@@ -228,7 +242,8 @@ void Nonogram::step() {
         }
     }
 
-    for (auto &line : m_lines) {
+    for (int i = 0; i < m_referred_number; i++) {
+        auto &line = m_lines[i];
         if (line.m_direction == HORIZONTAL) {
             if (horizontal_changed(line.m_index)) {
                 known = line.merge_options(get_horizontal(line.m_index));
@@ -250,7 +265,7 @@ void Nonogram::solve() {
     print_board();
     Logger(INFO).Get() << "Known count: " << count_known(-1) << endl;
 
-    initialize_options();
+    add_line();
 
     // todo: add check for unsolvable. (no change in known).
     for (int i = 0; !solved(); i++) {
@@ -262,7 +277,11 @@ void Nonogram::solve() {
         Logger(INFO).Get() << "Known count: " << count_known(-1) << endl;
 
         if (count_known(-1) <= count_known(-2)) {
-            throw runtime_error("The nonogram is unsolvable (at least not without guessing).");
+            if (m_referred_number == m_lines.size()) {
+                throw runtime_error("The nonogram is unsolvable (at least not without guessing).");
+            } else {
+                add_line();
+            }
         }
     }
 }

@@ -130,8 +130,23 @@ void Line::generate_options(const Known &known) {
         return;
     }
 
+    // todo: see if the options generation and checking can be optimized.
+    /*
+     * Look at this!
+     * Can be optimized if the fixed locations are found, especially if so little options remain, and iterate on the
+     * free spaces.
+     *
+     *  [2020/10/08 23:10:52.88] INFO:    Known count: 2716
+     *  [2020/10/08 23:10:52.89] INFO:    Adding line (horizontal 58) 105 -> 106
+     *  [2020/10/08 23:10:52.89] DEBUG:   Expected 92561040 options
+     *  [2020/10/08 23:13:21.14] DEBUG:   Generated 4 options
+     *  [2020/10/08 23:13:21.15] DEBUG:   Filter options 4 -> 4
+     */
     while (true) {
-        m_options.push_back(move(generate_option(options_iteration)));
+        auto option = generate_option(options_iteration);
+        if (check_option(known, option)) {
+            m_options.push_back(move(option));
+        }
 
         for (move_index = free_space - 1;
              (move_index >= 0) && (options_iteration[move_index] > m_numbers.size() - 1); move_index--);
@@ -140,11 +155,36 @@ void Line::generate_options(const Known &known) {
         for (; move_index < free_space; move_index++) options_iteration[move_index] = new_value;
     }
 
-    Logger(DEBUG).Get() << "Generated " << m_options.size() << " options" << endl;
+    Logger(DEBUG).Get() << "Generated " << m_options.size() << " options (saved "
+                        << get_combinations_number() - m_options.size() << ")" << endl;
+}
+
+bool Line::check_option(const Known &known, const vector<bool> &option) {
+    for (int i = 0; i < known.first.size(); i++) {
+        if (known.first[i]) {
+            if (option[i] != known.second[i]) {
+//                    // todo: enable to remove all trace logs in compile time maybe, takes a lot of time.
+//                    Logger logger(TRACE);
+//                    auto &output = logger.Get();
+//                    Logger(TRACE).Get() << "DIFF:   " << string(i, ' ') << known.second[i] << " [" << i << "]" << endl;
+//                    output << "DELETE: ";
+//                    for (int j = 0; j < known.first.size(); j++) {
+//                        output << option[j];
+//                    }
+//                    output << endl;
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 void Line::filter(const Known &known) {
     int previous_size = m_options.size();
+
+    if (previous_size == 1) {
+        return;
+    }
 
 //    Logger logger(TRACE);
 //    auto &output = logger.Get();
@@ -156,23 +196,7 @@ void Line::filter(const Known &known) {
 //    logger.flush();
 
     m_options.erase(remove_if(m_options.begin(), m_options.end(), [&known](const vector<bool> &option) {
-        for (int i = 0; i < known.first.size(); i++) {
-            if (known.first[i]) {
-                if (option[i] != known.second[i]) {
-//                    // todo: enable to remove all trace logs in compile time maybe, takes a lot of time.
-//                    Logger logger(TRACE);
-//                    auto &output = logger.Get();
-//                    Logger(TRACE).Get() << "DIFF:   " << string(i, ' ') << known.second[i] << " [" << i << "]" << endl;
-//                    output << "DELETE: ";
-//                    for (int j = 0; j < known.first.size(); j++) {
-//                        output << option[j];
-//                    }
-//                    output << endl;
-                    return true;
-                }
-            }
-        }
-        return false;
+        return !check_option(known, option);
     }), m_options.end());
     Logger(DEBUG).Get() << "Filter options " << previous_size << " -> " << m_options.size() << endl;
 }

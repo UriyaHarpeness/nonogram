@@ -43,6 +43,8 @@ public:
 
     void generate_options(const Known &known);
 
+    static bool check_option(const Known &known, const vector<bool> &option);
+
     void filter(const Known &known);
 
     Known merge_options(Known known);
