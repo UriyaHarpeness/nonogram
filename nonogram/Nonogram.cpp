@@ -127,7 +127,7 @@ Known Nonogram::get_vertical(int x) {
     return move(get_board_vertical(x, {m_set, m_value}));
 }
 
-Known Nonogram::get_board_horizontal(int y, const Board &board) {
+Known Nonogram::get_board_horizontal(int y, const Board &board) const {
     vector<bool> set(m_x), value(m_x);
 
     for (int i = 0; i < m_x; i++) {
@@ -138,7 +138,7 @@ Known Nonogram::get_board_horizontal(int y, const Board &board) {
     return {set, value};
 }
 
-Known Nonogram::get_board_vertical(int x, const Board &board) {
+Known Nonogram::get_board_vertical(int x, const Board &board) const {
     vector<bool> set(m_y), value(m_y);
 
     for (int i = 0; i < m_y; i++) {
@@ -210,7 +210,6 @@ void Nonogram::add_line() {
     if (line.m_direction == HORIZONTAL) {
         auto known = line.merge_options(get_horizontal(line.m_index));
         set_horizontal(known, line.m_index);
-
     } else {
         auto known = line.merge_options(get_vertical(line.m_index));
         set_vertical(known, line.m_index);

@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cassert>
+#include <set>
 #include <vector>
+#include <iostream>
 
 #include "../logging/Logger.h"
 
@@ -39,7 +41,27 @@ public:
 
     [[nodiscard]] Known initial_optimization() const;
 
-    vector<bool> generate_option(const vector<int> &spaces);
+    [[nodiscard]] vector<pair<int, int>> get_limits(const Known &known) const;
+
+    [[nodiscard]] vector<set<int>>
+    possible_per_number_to_extended_place(const vector<vector<int>> &possible_per_number) const;
+
+    [[nodiscard]] vector<vector<int>>
+    possible_per_extended_place_to_number(const vector<set<int>> &extended_possible_per_place) const;
+
+    void reduce_by_required(vector<set<int>> &extended_possible_per_place, const vector<int> &required,
+                            const vector<pair<int, int>> &limits);
+
+    void reduce_by_blocking_required(vector<vector<int>> &possible_per_number, const vector<int> &required);
+
+    void reduce_by_single_fit(vector<vector<int>> &possible_per_number);
+
+    void reduce_by_order(vector<vector<int>> &possible_per_number);
+
+    [[nodiscard]] static int counts_elements(const vector<vector<int>> &value);
+
+    [[nodiscard]] vector<bool>
+    generate_option(const vector<int> &iterators, const vector<vector<int>> &possible_per_number) const;
 
     void generate_options(const Known &known);
 

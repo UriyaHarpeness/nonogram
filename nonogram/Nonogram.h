@@ -33,9 +33,9 @@ public:
 
     Known get_vertical(int x);
 
-    Known get_board_horizontal(int y, const Board &board);
+    Known get_board_horizontal(int y, const Board &board) const;
 
-    Known get_board_vertical(int x, const Board &board);
+    Known get_board_vertical(int x, const Board &board) const;
 
     void set_horizontal(const Known &known, int y);
 
