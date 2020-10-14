@@ -40,6 +40,7 @@ vector<bool> Line::get_known_colored() const {
         offset += value + 1;
     }
 
+#if DEBUG_LOGS
     Logger logger(INFO);
     auto &output = logger.Get();
     output << "Size: " << m_size << ", values:";
@@ -47,6 +48,7 @@ vector<bool> Line::get_known_colored() const {
     output << ", free space: " << free_space << ", known: ";
     for (const auto &value : known_colored) output << value;
     output << "." << endl;
+#endif // DEBUG_LOGS
 
     return known_colored;
 }
@@ -59,7 +61,10 @@ Known Line::initial_optimization() const {
     known.second.resize(m_size, false);
 
     if (m_numbers.empty()) {
+#if DEBUG_LOGS
         Logger(DEBUG).Get() << "Size: " << m_size << ", all clear." << endl;
+#endif // DEBUG_LOGS
+
         for (int i = 0; i < m_size; i++) {
             known.first[i] = true;
             known.second[i] = false;
@@ -80,54 +85,39 @@ Known Line::initial_optimization() const {
     return known;
 }
 
-vector<pair<int, int>> Line::get_limits(const Known &known) const {
-    int counter;
+vector<pair<int, int>> Line::get_limits(const vector<int> &possible_length_by_location) const {
     int number_index;
 
     vector<pair<int, int>> limits(m_numbers.size());
 
     // Fit left.
-    counter = 0;
     number_index = 0;
     for (int i = 0; (i < m_size) && (number_index < m_numbers.size()); i++) {
-        if (!known.first[i] || known.second[i]) {
-            counter++;
-        } else {
-            counter = 0;
-        }
-
-        if (counter == m_numbers[number_index]) {
-            limits[number_index].first = i - m_numbers[number_index] + 1;
-            number_index++;
+        if (possible_length_by_location[i] >= m_numbers[number_index]) {
+            limits[number_index].first = i;
             // Need space.
-            counter = 0;
-            i++;
+            i += m_numbers[number_index];
+            number_index++;
         }
     }
 
     // Fit right.
-    counter = 0;
     number_index = m_numbers.size() - 1;
     for (int i = m_size - 1; (i >= 0) && (number_index >= 0); i--) {
-        if (!known.first[i] || known.second[i]) {
-            counter++;
-        } else {
-            counter = 0;
-        }
-
-        if (counter == m_numbers[number_index]) {
+        if (possible_length_by_location[i] >= m_numbers[number_index]) {
             limits[number_index].second = i;
             number_index--;
             // Need space.
-            counter = 0;
-            i--;
+            i -= m_numbers[number_index];
         }
     }
 
-//    Logger(TRACE).Get() << "Ranges:" << endl;
-//    for (int i = 0; i < limits.size(); i++) {
-//        Logger(TRACE).Get() << i << ": " << limits[i].first << "->" << limits[i].second << endl;
-//    }
+#if DEBUG_TRACES
+    Logger(TRACE).Get() << "Ranges:" << endl;
+    for (int i = 0; i < limits.size(); i++) {
+        Logger(TRACE).Get() << i << ": " << limits[i].first << "->" << limits[i].second << endl;
+    }
+#endif // DEBUG_TRACES
 
     return move(limits);
 }
@@ -205,7 +195,6 @@ void Line::reduce_by_blocking_required(vector<vector<int>> &possible_per_number,
     }
 }
 
-
 void Line::reduce_by_single_fit(vector<vector<int>> &possible_per_number) {
     for (int i = 0; i < m_numbers.size(); i++) {
         if (possible_per_number[i].size() == 1) {
@@ -248,35 +237,7 @@ int Line::counts_elements(const vector<vector<int>> &value) {
     return elements;
 }
 
-vector<bool> Line::generate_option(const vector<int> &iterators, const vector<vector<int>> &possible_per_number) const {
-    vector<bool> option(m_size, false);
-
-    for (int i = 0; i < m_numbers.size(); i++) {
-        for (int j = 0; j < m_numbers[i]; j++) option[possible_per_number[i][iterators[i]] + j] = true;
-    }
-
-    return move(option);
-}
-
-void Line::generate_options(const Known &known) {
-    Logger(DEBUG).Get() << "Originally possible " << get_combinations_number() << " options" << endl;
-
-    if (all_of(known.first.begin(), known.first.end(), [](bool v) { return v; })) {
-        m_options = {known.second};
-
-        return;
-    }
-
-    vector<pair<int, int>> limits = get_limits(known);
-
-    // Get known black.
-    vector<int> required;
-    for (int i = 0; i < m_size; i++) {
-        if (known.first[i] && known.second[i]) {
-            required.push_back(i);
-        }
-    }
-
+vector<vector<int>> Line::generate_possible_per_number(const Known &known) {
     // Get the possible length for each initial location.
     vector<int> possible_length_by_location(m_size);
     int counter = 0;
@@ -287,6 +248,16 @@ void Line::generate_options(const Known &known) {
             counter = 0;
         }
         possible_length_by_location[i] = counter;
+    }
+
+    vector<pair<int, int>> limits = get_limits(possible_length_by_location);
+
+    // Get known black.
+    vector<int> required;
+    for (int i = 0; i < m_size; i++) {
+        if (known.first[i] && known.second[i]) {
+            required.push_back(i);
+        }
     }
 
     vector<vector<int>> possible_per_number(m_numbers.size());
@@ -321,6 +292,139 @@ void Line::generate_options(const Known &known) {
         elements = counts_elements(possible_per_number);
     } while (elements < prev_elements);
 
+    return move(possible_per_number);
+}
+
+Known Line::optimize_locations(Known known) {
+    if (all_of(known.first.begin(), known.first.end(), [](bool v) { return v; })) {
+        m_options = {known.second};
+
+        return move(known);
+    }
+
+    vector<vector<int>> possible_per_number = generate_possible_per_number(known);
+
+#if DEBUG_LOGS
+    Known old = known;
+#endif // DEBUG_LOGS
+
+    int leftmost, rightmost;
+    for (int i = 0; i < m_numbers.size(); i++) {
+        leftmost = possible_per_number[i][0];
+        rightmost = possible_per_number[i][possible_per_number[i].size() - 1];
+        for (int j = rightmost - leftmost; j < m_numbers[i]; j++) {
+            known.first[j + leftmost] = true;
+            known.second[j + leftmost] = true;
+        }
+
+        // Only one possible place, add padding.
+        if (rightmost == leftmost) {
+            if (leftmost > 0) {
+                known.first[rightmost - 1] = true;
+                known.second[rightmost - 1] = false;
+            }
+            if (leftmost + m_numbers[i] < m_size) {
+                known.first[leftmost + m_numbers[i]] = true;
+                known.second[leftmost + m_numbers[i]] = false;
+            }
+        }
+    }
+
+    // Leftmost padding.
+    for (int i = 0; i < possible_per_number[0][0]; i++) {
+        known.first[i] = true;
+        known.second[i] = false;
+    }
+    // Rightmost padding.
+    for (int i = possible_per_number[m_numbers.size() - 1][possible_per_number[m_numbers.size() - 1].size() - 1] +
+                 m_numbers[m_numbers.size() - 1]; i < m_size; i++) {
+        known.first[i] = true;
+        known.second[i] = false;
+    }
+    // Padding between numbers.
+    for (int i = 0; i < m_numbers.size() - 1; i++) {
+        rightmost = possible_per_number[i][possible_per_number[i].size() - 1] + m_numbers[i];
+        leftmost = possible_per_number[i + 1][0];
+        for (int j = rightmost; j < leftmost; j++) {
+            known.first[j] = true;
+            known.second[j] = false;
+        }
+    }
+
+#if DEBUG_LOGS
+    if ((known.first != old.first) || (known.second != old.second)) {
+        Logger logger(DEBUG);
+        auto &output = logger.Get();
+        output << "KNOWN OLD: ";
+        for (int i = 0; i < old.first.size(); i++) {
+            output << (old.first[i] ? (old.second[i] ? '1' : '0') : ' ');
+        }
+        output << endl;
+        logger.flush();
+
+        logger.init_line();
+        output << "KNOWN NEW: ";
+        for (int i = 0; i < known.first.size(); i++) {
+            output << (known.first[i] ? (known.second[i] ? '1' : '0') : ' ');
+        }
+        output << endl;
+        logger.flush();
+    }
+
+#endif // DEBUG_LOGS
+
+    return move(known);
+}
+
+vector<bool> Line::generate_option(const vector<int> &iterators, const vector<vector<int>> &possible_per_number) const {
+    vector<bool> option(m_size, false);
+
+    for (int i = 0; i < m_numbers.size(); i++) {
+        for (int j = 0; j < m_numbers[i]; j++) option[possible_per_number[i][iterators[i]] + j] = true;
+    }
+
+#if DEBUG_TRACES
+    Logger logger(TRACE);
+    auto &output = logger.Get();
+    for (auto &&tile : option) {
+        output << (tile ? '1' : '0');
+    }
+    output << endl;
+    logger.flush();
+#endif //DEBUG_TRACES
+
+    return move(option);
+}
+
+inline bool Line::check_option_by_required(const vector<int> &required, const vector<bool> &option) {
+    return all_of(required.begin(), required.end(), [&option](int single_required) { return option[single_required]; });
+}
+
+void Line::generate_options(const Known &known) {
+#if DEBUG_LOGS
+    Logger(DEBUG).Get() << "Originally possible " << get_combinations_number() << " options" << endl;
+#endif // DEBUG_LOGS
+
+    if (all_of(known.first.begin(), known.first.end(), [](bool v) { return v; })) {
+        m_options = {known.second};
+
+#if DEBUG_LOGS
+        Logger(DEBUG).Get() << "All known" << endl;
+#endif // DEBUG_LOGS
+
+        return;
+    }
+
+    vector<vector<int>> possible_per_number = generate_possible_per_number(known);
+
+    // Get known black.
+    vector<int> required;
+    for (int i = 0; i < m_size; i++) {
+        if (known.first[i] && known.second[i]) {
+            required.push_back(i);
+        }
+    }
+
     // todo: add option to get hints without generating all combinations, cen be done quite easily with the data already extracted here.
 
     vector<int> iterators(m_numbers.size(), 0);
@@ -329,7 +433,8 @@ void Line::generate_options(const Known &known) {
     while (true) {
         auto option = generate_option(iterators, possible_per_number);
         generated++;
-        if (check_option(known, option)) {
+
+        if (check_option_by_required(required, option)) {
             m_options.push_back(move(option));
         }
 
@@ -346,24 +451,28 @@ void Line::generate_options(const Known &known) {
         }
     }
 
+#if DEBUG_LOGS
     Logger(DEBUG).Get() << "Generated " << m_options.size() << " options (saved "
                         << get_combinations_number() - generated << " by optimization and "
                         << generated - m_options.size() << " by filtering)" << endl;
+#endif // DEBUG_LOGS
 }
 
-bool Line::check_option(const Known &known, const vector<bool> &option) {
+inline bool Line::check_option(const Known &known, const vector<bool> &option) {
     for (int i = 0; i < known.first.size(); i++) {
         if (known.first[i]) {
             if (option[i] != known.second[i]) {
-//                    // todo: enable to remove all trace logs in compile time maybe, takes a lot of time.
-//                    Logger logger(TRACE);
-//                    auto &output = logger.Get();
-//                    Logger(TRACE).Get() << "DIFF:   " << string(i, ' ') << known.second[i] << " [" << i << "]" << endl;
-//                    output << "DELETE: ";
-//                    for (int j = 0; j < known.first.size(); j++) {
-//                        output << option[j];
-//                    }
-//                    output << endl;
+#if DEBUG_TRACES
+                Logger logger(TRACE);
+                auto &output = logger.Get();
+                Logger(TRACE).Get() << "DIFF:   " << string(i, ' ') << known.second[i] << " [" << i << "]" << endl;
+                output << "DELETE: ";
+                for (int j = 0; j < known.first.size(); j++) {
+                    output << option[j];
+                }
+                output << endl;
+#endif // DEBUG_TRACES
+
                 return false;
             }
         }
@@ -378,19 +487,24 @@ void Line::filter(const Known &known) {
         return;
     }
 
-//    Logger logger(TRACE);
-//    auto &output = logger.Get();
-//    output << "KNOWN:  ";
-//    for (int i = 0; i < known.first.size(); i++) {
-//        output << (known.first[i] ? (known.second[i] ? '1' : '0') : ' ');
-//    }
-//    output << endl;
-//    logger.flush();
+#if DEBUG_TRACES
+    Logger logger(TRACE);
+    auto &output = logger.Get();
+    output << "KNOWN:  ";
+    for (int i = 0; i < known.first.size(); i++) {
+        output << (known.first[i] ? (known.second[i] ? '1' : '0') : ' ');
+    }
+    output << endl;
+    logger.flush();
+#endif //DEBUG_TRACES
 
     m_options.erase(remove_if(m_options.begin(), m_options.end(), [&known](const vector<bool> &option) {
         return !check_option(known, option);
     }), m_options.end());
+
+#if DEBUG_LOGS
     Logger(DEBUG).Get() << "Filter options " << previous_size << " -> " << m_options.size() << endl;
+#endif // DEBUG_LOGS
 }
 
 Known Line::merge_options(Known known) {
@@ -419,6 +533,7 @@ Known Line::merge_options(Known known) {
         merge_or[i] = or_flag;
     }
 
+#if DEBUG_LOGS
     string line;
 
     line = "AND ";
@@ -434,6 +549,7 @@ Known Line::merge_options(Known known) {
         line += ((merge_and[i] == merge_or[i]) ? (merge_and[i] ? '1' : '0') : ' ');
     }
     Logger(DEBUG).Get() << line << endl;
+#endif // DEBUG_LOGS
 
     for (i = 0; i < known.first.size(); i++) {
         if (merge_and[i] == merge_or[i]) {
