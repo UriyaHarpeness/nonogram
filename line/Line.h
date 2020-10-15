@@ -35,6 +35,8 @@ public:
 
     [[nodiscard]] size_t get_combinations_number() const;
 
+    [[nodiscard]] inline size_t max_combinations(const vector<vector<int>> &possible_per_number) const;
+
     [[nodiscard]] int get_free_space() const;
 
     [[nodiscard]] vector<bool> get_known_colored() const;
@@ -81,6 +83,9 @@ public:
 
 private:
     /*
+     * todo: add options to choose between bool and unsigned char in compile time (#ifdef).
+     * if so, disable all logs besides summary as well...
+     *
      * Storing the options in vector of different types:
      * 1. bool - Takes a small space in memory, can fit entirely into cache, can make general memory accesses faster.
      * 2. unsigned char - Takes more space in memory, but specific index accessing and calculations are faster.
@@ -96,4 +101,7 @@ private:
     Direction m_direction;
 
     int m_index;
+
+    // Maximum combinations in case some of the line is known, if not known, the number is exact.
+    size_t m_max_combinations;
 };

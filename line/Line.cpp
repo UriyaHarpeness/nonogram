@@ -1,7 +1,8 @@
 #include "Line.h"
 
 Line::Line(const vector<int> &numbers, int size, Direction direction, int index) :
-        m_numbers(numbers), m_size(size), m_direction(direction), m_index(index) {}
+        m_numbers(numbers), m_size(size), m_direction(direction), m_index(index),
+        m_max_combinations(get_combinations_number()) {}
 
 size_t Line::n_choose_k(unsigned int n, unsigned int k) {
     if (k > n) return 0;
@@ -22,6 +23,31 @@ size_t Line::calculate_combinations(unsigned int n, unsigned int k) {
 
 size_t Line::get_combinations_number() const {
     return calculate_combinations(get_free_space(), m_numbers.size());
+}
+
+inline size_t Line::max_combinations(const vector<vector<int>> &possible_per_number) const {
+    vector<vector<size_t>> possibilities_count_per_number(m_numbers.size());
+    for (int i = 0; i < possible_per_number.size(); i++) {
+        possibilities_count_per_number[i].resize(possible_per_number[i].size());
+    }
+
+    for (int i = 0; i < possible_per_number[m_numbers.size() - 1].size(); i++) {
+        possibilities_count_per_number[m_numbers.size() - 1][i] = possible_per_number[m_numbers.size() - 1].size() - i;
+    }
+
+    for (int i = m_numbers.size() - 2; i >= 0; i--) {
+        for (int j = possible_per_number[i].size() - 1; j >= 0; j--) {
+            int next_number_leftmost = lower_bound(possible_per_number[i + 1].begin(), possible_per_number[i + 1].end(),
+                                                   possible_per_number[i][j] + m_numbers[i] + 1) -
+                                       possible_per_number[i + 1].begin();
+            size_t combinations = ((j == possible_per_number[i].size() - 1) ? 0 :
+                                   possibilities_count_per_number[i][j + 1]) +
+                                  possibilities_count_per_number[i + 1][next_number_leftmost];
+            possibilities_count_per_number[i][j] = combinations;
+        }
+    }
+
+    return possibilities_count_per_number[0][0];
 }
 
 int Line::get_free_space() const {
@@ -298,6 +324,7 @@ vector<vector<int>> Line::generate_possible_per_number(const Known &known) {
 Known Line::optimize_locations(Known known) {
     if (all_of(known.first.begin(), known.first.end(), [](bool v) { return v; })) {
         m_options = {known.second};
+        m_max_combinations = 1;
 
         return move(known);
     }
@@ -370,8 +397,9 @@ Known Line::optimize_locations(Known known) {
         output << endl;
         logger.flush();
     }
-
 #endif // DEBUG_LOGS
+
+    m_max_combinations = max_combinations(possible_per_number);
 
     return move(known);
 }
@@ -424,8 +452,6 @@ void Line::generate_options(const Known &known) {
             required.push_back(i);
         }
     }
-
-    // todo: add option to get hints without generating all combinations, cen be done quite easily with the data already extracted here.
 
     vector<int> iterators(m_numbers.size(), 0);
     int index;

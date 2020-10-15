@@ -75,10 +75,6 @@ Nonogram::Nonogram(const string &file_name) : m_referred_number(0) {
     m_set.resize(m_x);
     for (i = 0; i < m_x; m_value[i].resize(m_y, false), m_set[i].resize(m_y, false), i++);
 
-    sort(m_lines.begin(), m_lines.end(), [](const Line &lhs, const Line &rhs) {
-        return lhs.get_combinations_number() < rhs.get_combinations_number();
-    });
-
     save_board();
 }
 
@@ -202,17 +198,11 @@ void Nonogram::initial_optimization() {
 }
 
 void Nonogram::add_line() {
-    auto &line = m_lines[m_referred_number];
+    sort(m_lines.begin() + m_referred_number, m_lines.end(), [](const Line &lhs, const Line &rhs) {
+        return lhs.m_max_combinations < rhs.m_max_combinations;
+    });
 
-    // todo: see if sorting by unknown is more efficient.
-    /*
-     * Sorting options:
-     *
-     * 1. Min combinations.
-     * 2. Min optimized number ~.
-     * 3. Known percent.
-     * 4. Known in relation to combinations.
-     */
+    auto &line = m_lines[m_referred_number];
 
 #if DEBUG_LOGS
     Logger(INFO).Get() << "Adding line (" << ((line.m_direction == HORIZONTAL) ? "horizontal" : "vertical") << " "
@@ -291,7 +281,6 @@ void Nonogram::solve() {
 #endif // DEBUG_LOGS
 
     save_board();
-    add_line();
 
     for (int i = 0; !solved(); i++) {
         step();
@@ -301,6 +290,12 @@ void Nonogram::solve() {
         Logger(INFO).Get() << "Step " << i + 1 << endl;
         print_board();
         Logger(INFO).Get() << "Known count: " << count_known(-1) << endl;
+
+        size_t options_count = 0;
+        for (const auto &line : m_lines) {
+            options_count += line.m_options.size();
+        }
+        Logger(INFO).Get() << "Options count: " << options_count << endl;
 #endif // DEBUG_LOGS
         save_board();
 
