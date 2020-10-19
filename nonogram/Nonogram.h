@@ -33,9 +33,9 @@ public:
 
     Known get_vertical(int x);
 
-    Known get_board_horizontal(int y, const Board &board) const;
+    [[nodiscard]] Known get_board_horizontal(int y, const Board &board) const;
 
-    Known get_board_vertical(int x, const Board &board) const;
+    [[nodiscard]] Known get_board_vertical(int x, const Board &board) const;
 
     void set_horizontal(const Known &known, int y);
 
@@ -69,16 +69,6 @@ private:
 
     vector<vector<bool>> m_value, m_set;
 
-    // todo:
-    /*
-     * Storing the options in vector of different types:
-     * 1. bool - Takes a small space in memory, can fit entirely into cache, can make general memory accesses faster.
-     * 2. unsigned char - Takes more space in memory, but specific index accessing and calculations are faster.
-     *
-     * Summary:
-     * Until the partial options generation is implemented, bool is better, since there's avery real limit for memory,
-     * after this is implemented, and not so much memory will be used, this may help speed up calculations and accesses.
-     */
     vector<Line> m_lines;
 
     vector<Board> m_boards;
