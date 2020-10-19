@@ -12,14 +12,14 @@ const map<LogLevel, string> Logger::level_strings = {
 
 Logger::Logger(LogLevel level) : m_level(level), m_empty(true) {}
 
-string Logger::zfill(string str, int length, char filler) {
+string Logger::zfill(string str, unsigned int length, char filler) {
     if (str.length() < length) {
         str.insert(0, string(length - str.length(), filler));
     }
     return str;
 }
 
-string Logger::pad(string str, int length, char filler) {
+string Logger::pad(string str, unsigned int length, char filler) {
     if (str.length() < length) {
         str.resize(length, filler);
     }
@@ -47,7 +47,7 @@ void Logger::init_line() {
     m_empty = false;
 }
 
-ostringstream &Logger::Get() {
+ostringstream &Logger::get() {
     init_line();
 
     return os;
