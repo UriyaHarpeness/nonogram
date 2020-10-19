@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
     Nonogram nonogram(file_name);
 
 #if DEBUG_LOGS
-    Logger(INFO).Get() << "Empty Board" << endl;
+    Logger(INFO).get() << "Empty Board" << endl;
     nonogram.print_board();
 #endif // DEBUG_LOGS
 
@@ -41,12 +41,12 @@ int main(int argc, char *argv[]) {
     nonogram.solve();
 
 #if DEBUG_SUMMARY
-    Logger(ERROR).Get() << endl;
-    Logger(ERROR).Get() << "Solution" << endl;
+    Logger(ERROR).get() << endl;
+    Logger(ERROR).get() << "Solution" << endl;
     nonogram.print_board(ERROR, Nonogram::color_black, Nonogram::color_empty, Nonogram::color_unknown);
 #endif // DEBUG_SUMMARY
 
-    // Save the nonogram.
+    // Save the nonogram's solution.
     nonogram.save(output);
 
     return 0;

@@ -1,6 +1,6 @@
 #include "Line.h"
 
-Line::Line(const vector<int> &numbers, int size, Direction direction, int index) :
+Line::Line(const vector<int> &numbers, unsigned int size, Direction direction, unsigned int index) :
         m_numbers(numbers), m_size(size), m_direction(direction), m_index(index),
         m_max_combinations(get_combinations_number()) {}
 
@@ -35,8 +35,8 @@ inline size_t Line::max_combinations(const vector<vector<int>> &possible_per_num
         possibilities_count_per_number[m_numbers.size() - 1][i] = possible_per_number[m_numbers.size() - 1].size() - i;
     }
 
-    for (int i = m_numbers.size() - 2; i >= 0; i--) {
-        for (int j = possible_per_number[i].size() - 1; j >= 0; j--) {
+    for (int i = (int) m_numbers.size() - 2; i >= 0; i--) {
+        for (int j = (int) possible_per_number[i].size() - 1; j >= 0; j--) {
             int next_number_leftmost = lower_bound(possible_per_number[i + 1].begin(), possible_per_number[i + 1].end(),
                                                    possible_per_number[i][j] + m_numbers[i] + 1) -
                                        possible_per_number[i + 1].begin();
@@ -50,7 +50,7 @@ inline size_t Line::max_combinations(const vector<vector<int>> &possible_per_num
     return possibilities_count_per_number[0][0];
 }
 
-int Line::get_free_space() const {
+unsigned int Line::get_free_space() const {
     int values_sum = 0;
     for (const auto &value : m_numbers) values_sum += value;
     return m_size - (values_sum + (int) m_numbers.size() - 1);
@@ -60,15 +60,15 @@ vector<bool> Line::get_known_colored() const {
     vector<bool> known_colored(m_size, false);
 
     int offset = 0;
-    int free_space = get_free_space();
+    unsigned int free_space = get_free_space();
     for (const auto &value : m_numbers) {
-        for (int i = free_space; i < value; i++) known_colored[offset + i] = true;
+        for (unsigned int i = free_space; i < value; i++) known_colored[offset + i] = true;
         offset += value + 1;
     }
 
 #if DEBUG_LOGS
     Logger logger(INFO);
-    auto &output = logger.Get();
+    auto &output = logger.get();
     output << "Size: " << m_size << ", values:";
     for (const auto &value : m_numbers) output << " " << value;
     output << ", free space: " << free_space << ", known: ";
@@ -88,7 +88,7 @@ Known Line::initial_optimization() const {
 
     if (m_numbers.empty()) {
 #if DEBUG_LOGS
-        Logger(DEBUG).Get() << "Size: " << m_size << ", all clear." << endl;
+        Logger(DEBUG).get() << "Size: " << m_size << ", all clear." << endl;
 #endif // DEBUG_LOGS
 
         for (int i = 0; i < m_size; i++) {
@@ -128,8 +128,8 @@ vector<pair<int, int>> Line::get_limits(const vector<int> &possible_length_by_lo
     }
 
     // Fit right.
-    number_index = m_numbers.size() - 1;
-    for (int i = m_size - 1; (i >= 0) && (number_index >= 0); i--) {
+    number_index = (int) m_numbers.size() - 1;
+    for (int i = (int) m_size - 1; (i >= 0) && (number_index >= 0); i--) {
         if (possible_length_by_location[i] >= m_numbers[number_index]) {
             limits[number_index].second = i;
             number_index--;
@@ -139,9 +139,9 @@ vector<pair<int, int>> Line::get_limits(const vector<int> &possible_length_by_lo
     }
 
 #if DEBUG_TRACES
-    Logger(TRACE).Get() << "Ranges:" << endl;
+    Logger(TRACE).get() << "Ranges:" << endl;
     for (int i = 0; i < limits.size(); i++) {
-        Logger(TRACE).Get() << i << ": " << limits[i].first << "->" << limits[i].second << endl;
+        Logger(TRACE).get() << i << ": " << limits[i].first << "->" << limits[i].second << endl;
     }
 #endif // DEBUG_TRACES
 
@@ -194,13 +194,15 @@ void Line::reduce_by_required(vector<set<int>> &extended_possible_per_place, con
                               const vector<pair<int, int>> &limits) {
     for (const auto &single_required : required) {
         if (extended_possible_per_place[single_required].size() == 1) {
+            // Only one number fits the required black.
             int fitting = *extended_possible_per_place[single_required].begin();
             for (int j = limits[fitting].first; j < limits[fitting].second + m_numbers[fitting]; j++) {
+                // Remove the number from positions which do not contain the required black.
                 if ((j < (single_required - m_numbers[fitting] + 1)) || (j >= (single_required + m_numbers[fitting]))) {
-                    auto t = find(extended_possible_per_place[j].begin(), extended_possible_per_place[j].end(),
-                                  fitting);
-                    if (t != extended_possible_per_place[j].end()) {
-                        extended_possible_per_place[j].erase(t);
+                    auto fitting_iterator = find(extended_possible_per_place[j].begin(),
+                                                 extended_possible_per_place[j].end(), fitting);
+                    if (fitting_iterator != extended_possible_per_place[j].end()) {
+                        extended_possible_per_place[j].erase(fitting_iterator);
                     }
                 }
             }
@@ -210,13 +212,13 @@ void Line::reduce_by_required(vector<set<int>> &extended_possible_per_place, con
 
 void Line::reduce_by_blocking_required(vector<vector<int>> &possible_per_number, const vector<int> &required) {
     for (const auto &single_required : required) {
+        // Remove positions for numbers which conflict with the required blacks.
         for (int i = 0; i < m_numbers.size(); i++) {
             possible_per_number[i].erase(
                     remove_if(possible_per_number[i].begin(), possible_per_number[i].end(), [&](int place) {
                         return ((place - 1 == single_required) ||
                                 (place + m_numbers[i] == single_required)); // Includes trailing space.
                     }), possible_per_number[i].end());
-
         }
     }
 }
@@ -224,9 +226,11 @@ void Line::reduce_by_blocking_required(vector<vector<int>> &possible_per_number,
 void Line::reduce_by_single_fit(vector<vector<int>> &possible_per_number) {
     for (int i = 0; i < m_numbers.size(); i++) {
         if (possible_per_number[i].size() == 1) {
+            // The number has only one possible place.
             int known_place = possible_per_number[i][0];
             for (int j = 0; j < m_numbers.size(); j++) {
                 if (j == i) continue;
+                // Remove the positions of that number from other number's possibilities.
                 possible_per_number[j].erase(
                         remove_if(possible_per_number[j].begin(), possible_per_number[j].end(), [&](int place) {
                             return ((place >= known_place) &&
@@ -238,8 +242,9 @@ void Line::reduce_by_single_fit(vector<vector<int>> &possible_per_number) {
 }
 
 void Line::reduce_by_order(vector<vector<int>> &possible_per_number) {
-    for (int i = m_numbers.size() - 2; i >= 0; i--) {
+    for (int i = (int) m_numbers.size() - 2; i >= 0; i--) {
         int rightmost = possible_per_number[i + 1][possible_per_number[i + 1].size() - 1];
+        // Remove positions which overflow the next number's rightmost position.
         possible_per_number[i].erase(
                 remove_if(possible_per_number[i].begin(), possible_per_number[i].end(), [&](int place) {
                     return place + m_numbers[i] >= rightmost; // Includes trailing space.
@@ -248,6 +253,7 @@ void Line::reduce_by_order(vector<vector<int>> &possible_per_number) {
 
     for (int i = 1; i < m_numbers.size(); i++) {
         int leftmost = possible_per_number[i - 1][0];
+        // Remove positions which overflow the previous number's leftmost position.
         possible_per_number[i].erase(
                 remove_if(possible_per_number[i].begin(), possible_per_number[i].end(), [&](int place) {
                     return place <= leftmost + m_numbers[i - 1]; // Includes trailing space.
@@ -255,11 +261,9 @@ void Line::reduce_by_order(vector<vector<int>> &possible_per_number) {
     }
 }
 
-int Line::counts_elements(const vector<vector<int>> &value) {
-    int elements = 0;
-
+unsigned int Line::counts_elements(const vector<vector<int>> &value) {
+    unsigned int elements = 0;
     for (const auto &values : value) elements += values.size();
-
     return elements;
 }
 
@@ -267,7 +271,7 @@ vector<vector<int>> Line::generate_possible_per_number(const Known &known) {
     // Get the possible length for each initial location.
     vector<int> possible_length_by_location(m_size);
     int counter = 0;
-    for (int i = m_size - 1; i >= 0; i--) {
+    for (int i = (int) m_size - 1; i >= 0; i--) {
         if (!known.first[i] || known.second[i]) {
             counter++;
         } else {
@@ -296,10 +300,10 @@ vector<vector<int>> Line::generate_possible_per_number(const Known &known) {
         }
     }
 
-    int elements = counts_elements(possible_per_number);
+    unsigned int elements = counts_elements(possible_per_number), prev_elements;
     vector<set<int>> extended_possible_per_place;
-    int prev_elements;
 
+    // Perform possible positions reducing until no more is possible.
     do {
         prev_elements = elements;
 
@@ -321,7 +325,7 @@ vector<vector<int>> Line::generate_possible_per_number(const Known &known) {
     return move(possible_per_number);
 }
 
-Known Line::optimize_locations(Known known) {
+Known Line::calculate_known(Known known) {
     if (all_of(known.first.begin(), known.first.end(), [](bool v) { return v; })) {
         m_options = {known.second};
         m_max_combinations = 1;
@@ -381,7 +385,7 @@ Known Line::optimize_locations(Known known) {
 #if DEBUG_LOGS
     if ((known.first != old.first) || (known.second != old.second)) {
         Logger logger(DEBUG);
-        auto &output = logger.Get();
+        auto &output = logger.get();
         output << "KNOWN OLD: ";
         for (int i = 0; i < old.first.size(); i++) {
             output << (old.first[i] ? (old.second[i] ? '1' : '0') : ' ');
@@ -404,16 +408,17 @@ Known Line::optimize_locations(Known known) {
     return move(known);
 }
 
-vector<bool> Line::generate_option(const vector<int> &iterators, const vector<vector<int>> &possible_per_number) const {
+vector<bool>
+Line::generate_option(const vector<int> &position_indexes, const vector<vector<int>> &possible_per_number) const {
     vector<bool> option(m_size, false);
 
     for (int i = 0; i < m_numbers.size(); i++) {
-        for (int j = 0; j < m_numbers[i]; j++) option[possible_per_number[i][iterators[i]] + j] = true;
+        for (int j = 0; j < m_numbers[i]; j++) option[possible_per_number[i][position_indexes[i]] + j] = true;
     }
 
 #if DEBUG_TRACES
     Logger logger(TRACE);
-    auto &output = logger.Get();
+    auto &output = logger.get();
     for (auto &&tile : option) {
         output << (tile ? '1' : '0');
     }
@@ -430,14 +435,14 @@ inline bool Line::check_option_by_required(const vector<int> &required, const ve
 
 void Line::generate_options(const Known &known) {
 #if DEBUG_LOGS
-    Logger(DEBUG).Get() << "Originally possible " << get_combinations_number() << " options" << endl;
+    Logger(DEBUG).get() << "Originally possible " << get_combinations_number() << " options" << endl;
 #endif // DEBUG_LOGS
 
     if (all_of(known.first.begin(), known.first.end(), [](bool v) { return v; })) {
         m_options = {known.second};
 
 #if DEBUG_LOGS
-        Logger(DEBUG).Get() << "All known" << endl;
+        Logger(DEBUG).get() << "All known" << endl;
 #endif // DEBUG_LOGS
 
         return;
@@ -456,6 +461,8 @@ void Line::generate_options(const Known &known) {
     vector<int> iterators(m_numbers.size(), 0);
     int index;
     int generated = 0;
+
+    // Generate all options for the line.
     while (true) {
         auto option = generate_option(iterators, possible_per_number);
         generated++;
@@ -464,7 +471,7 @@ void Line::generate_options(const Known &known) {
             m_options.push_back(move(option));
         }
 
-        for (index = m_numbers.size() - 1;
+        for (index = (int) m_numbers.size() - 1;
              (index >= 0) && (iterators[index] == possible_per_number[index].size() - 1); index--);
         if (index < 0) break;
 
@@ -478,7 +485,7 @@ void Line::generate_options(const Known &known) {
     }
 
 #if DEBUG_LOGS
-    Logger(DEBUG).Get() << "Generated " << m_options.size() << " options (saved "
+    Logger(DEBUG).get() << "Generated " << m_options.size() << " options (saved "
                         << get_combinations_number() - generated << " by optimization and "
                         << generated - m_options.size() << " by filtering)" << endl;
 #endif // DEBUG_LOGS
@@ -490,8 +497,8 @@ inline bool Line::check_option(const Known &known, const vector<bool> &option) {
             if (option[i] != known.second[i]) {
 #if DEBUG_TRACES
                 Logger logger(TRACE);
-                auto &output = logger.Get();
-                Logger(TRACE).Get() << "DIFF:   " << string(i, ' ') << known.second[i] << " [" << i << "]" << endl;
+                auto &output = logger.get();
+                Logger(TRACE).get() << "DIFF:   " << string(i, ' ') << known.second[i] << " [" << i << "]" << endl;
                 output << "DELETE: ";
                 for (int j = 0; j < known.first.size(); j++) {
                     output << option[j];
@@ -515,7 +522,7 @@ void Line::filter(const Known &known) {
 
 #if DEBUG_TRACES
     Logger logger(TRACE);
-    auto &output = logger.Get();
+    auto &output = logger.get();
     output << "KNOWN:  ";
     for (int i = 0; i < known.first.size(); i++) {
         output << (known.first[i] ? (known.second[i] ? '1' : '0') : ' ');
@@ -529,7 +536,7 @@ void Line::filter(const Known &known) {
     }), m_options.end());
 
 #if DEBUG_LOGS
-    Logger(DEBUG).Get() << "Filter options " << previous_size << " -> " << m_options.size() << endl;
+    Logger(DEBUG).get() << "Filter options " << previous_size << " -> " << m_options.size() << endl;
 #endif // DEBUG_LOGS
 }
 
@@ -564,17 +571,17 @@ Known Line::merge_options(Known known) {
 
     line = "AND ";
     for (const auto &it : merge_and) line += (it ? '1' : '0');
-    Logger(DEBUG).Get() << line << endl;
+    Logger(DEBUG).get() << line << endl;
 
     line = "OR  ";
     for (const auto &it : merge_or) line += (it ? '1' : '0');
-    Logger(DEBUG).Get() << line << endl;
+    Logger(DEBUG).get() << line << endl;
 
     line = "SUM ";
     for (i = 0; i < known.first.size(); i++) {
         line += ((merge_and[i] == merge_or[i]) ? (merge_and[i] ? '1' : '0') : ' ');
     }
-    Logger(DEBUG).Get() << line << endl;
+    Logger(DEBUG).get() << line << endl;
 #endif // DEBUG_LOGS
 
     for (i = 0; i < known.first.size(); i++) {
