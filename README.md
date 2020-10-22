@@ -21,10 +21,16 @@ gcc, cmake.
 apt install gcc cmake
 ```
 
-For using the Python display code, pygame is also required.
+For using the Python display script, `pygame` is required.
 
 ```shell script
 pip3 install pygame
+```
+
+For using the Python random nonogram fetch script, `requests` and `xmltodict` are required.
+
+```shell script
+pip3 install requests xmltodict
 ```
 
 ### Configuring
@@ -61,7 +67,7 @@ The format for input files is as follows:
 * An empty lines means no numbers.
 * A line that starts with `*` will be ignored.
 
-Refer to the [resources](resources) folder for examples. 
+Refer to the [resources](resources) folder for examples.
 
 For example:
 
@@ -86,13 +92,31 @@ Example for optional result of the file:
 [2038/10/28 01:14:28.92] ERROR:   @@@   @@@
 ```
 
-The python display script takes one keyword argument: `--path` - the path to the nonogram solution file, for example:
+The python display script takes one keyword argument: `--path / -p` - the path to the nonogram solution file, for example:
 
 ```shell script
-python3 display.py --path solution.txt
+python3 scripts/display.py --path solution.txt
 ```
 
 You can use the `+`, `-`, and the mouse scroll to zoom in or out on the nonogram.
+
+The python random nonogram fetch script takes three keyword arguments, 1 required and 2 optional: `--size / -s`, `--id`, and `--output / -o`.
+* `--size` is optional, the size of the nonogram to retrieve, can be one of the following options:
+  * any (default value)
+  * small
+  * medium
+  * large
+  * huge
+* `--id` is optional, the ID of the nonogram to retrieve.
+* `--output` is required, the file path to write the nonogram definition file.
+
+Note: `--id` amd `--size` cannot be used together.
+
+For example:
+
+```shell script
+python3 scripts/get_random.py --size huge --output nonogram.txt
+```
 
 ### Test Run
 
@@ -128,7 +152,7 @@ Now try using Nonogram, take it for a test run, for example:
 And using the display:
 
 ```text
-python3 display.py --path uh-solution.txt
+python3 scripts/display.py --path uh-solution.txt
 ```
 
 ![display.py screen for uh-solution.txt](display-example.png)
@@ -143,7 +167,9 @@ the most efficient usage of lines.
 * Implements high levels of optimizations, reducing options generated to minimum, causing a much faster run.
 * Supports multiple levels of logging.
 * Saves result to a file.
-* Implements a python code which uses [Pygame](https://www.pygame.org/) to represent the nonogram's solution.
+* Implements a python code which uses [Pygame](https://www.pygame.org/) to represent the nonogram's solution and another
+script that uses [requests](https://pypi.org/project/requests/) and [xmltodict](https://pypi.org/project/xmltodict/) to
+get a random nonogram from [Web Paint-By-Number](https://webpbn.com/).
 
 ## Documentation
 
@@ -168,3 +194,6 @@ this small project, it has been fun.
 
 * Big thanks to [Valgrind](https://valgrind.org/) for their dynamic analysis tool, which helped me solve segmentation
 faults when trying to add features and optimizations.
+
+* I thank [Web Paint-By-Number](https://webpbn.com/) for their simple API and many nonograms that helps keeping the
+nonograms new and interesting.
