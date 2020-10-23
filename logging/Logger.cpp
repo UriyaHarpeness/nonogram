@@ -40,8 +40,8 @@ void Logger::init_line() {
     os << zfill(to_string(now->tm_hour), 2) << ":" << zfill(to_string(now->tm_min), 2) << ":"
        << zfill(to_string(now->tm_sec), 2) << ".";
     os << zfill(to_string(
-            (chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count() %
-             1000) / 10), 2);
+            chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count() %
+            1000), 3);
     os << "] " << pad(level_strings.at(m_level) + ": ", 9, ' ');
 
     m_empty = false;

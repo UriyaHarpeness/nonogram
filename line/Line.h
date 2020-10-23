@@ -211,9 +211,9 @@ public:
      * Generate possible positions for the numbers.
      *
      * @param known The line.
-     * @return  Possible positions for the numbers.
+     * @return  Possible positions for the numbers, plus expanded.
      */
-    vector<vector<int>> generate_possible_per_number(const Known &known);
+    pair<vector<vector<int>>, vector<set<int>>> generate_possible_per_number(const Known &known);
 
     /**
      * Calculate and generate known values.
@@ -242,9 +242,9 @@ public:
      *
      * @param required  Locations known to be black.
      * @param option    The option to check.
-     * @return  Does the option has black values where required.
+     * @return  -1 if the option has black values where required, the index of the missing required otherwise.
      */
-    inline static bool check_option_by_required(const vector<int> &required, const vector<bool> &option);
+    inline static int check_option_by_required(const vector<int> &required, const vector<bool> &option);
 
     /**
      * Generate all options for the line.
