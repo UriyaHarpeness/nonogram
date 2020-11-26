@@ -267,7 +267,7 @@ unsigned int Line::counts_elements(const vector<vector<int>> &value) {
     return elements;
 }
 
-vector<vector<int>> Line::generate_possible_per_number(const Known &known) {
+pair<vector<vector<int>>, vector<set<int>>> Line::generate_possible_per_number(const Known &known) {
     // Get the possible length for each initial location.
     vector<int> possible_length_by_location(m_size);
     int counter = 0;
@@ -322,7 +322,7 @@ vector<vector<int>> Line::generate_possible_per_number(const Known &known) {
         elements = counts_elements(possible_per_number);
     } while (elements < prev_elements);
 
-    return move(possible_per_number);
+    return {move(possible_per_number), move(extended_possible_per_place)};
 }
 
 Known Line::calculate_known(Known known) {
@@ -333,7 +333,9 @@ Known Line::calculate_known(Known known) {
         return move(known);
     }
 
-    vector<vector<int>> possible_per_number = generate_possible_per_number(known);
+    auto generated_possibilities = generate_possible_per_number(known);
+    vector<vector<int>> &possible_per_number = generated_possibilities.first;
+    vector<set<int>> &extended_possible_per_place = generated_possibilities.second;
 
 #if DEBUG_LOGS
     Known old = known;
@@ -361,24 +363,10 @@ Known Line::calculate_known(Known known) {
         }
     }
 
-    // Leftmost padding.
-    for (int i = 0; i < possible_per_number[0][0]; i++) {
-        known.first[i] = true;
-        known.second[i] = false;
-    }
-    // Rightmost padding.
-    for (int i = possible_per_number[m_numbers.size() - 1][possible_per_number[m_numbers.size() - 1].size() - 1] +
-                 m_numbers[m_numbers.size() - 1]; i < m_size; i++) {
-        known.first[i] = true;
-        known.second[i] = false;
-    }
-    // Padding between numbers.
-    for (int i = 0; i < m_numbers.size() - 1; i++) {
-        rightmost = possible_per_number[i][possible_per_number[i].size() - 1] + m_numbers[i];
-        leftmost = possible_per_number[i + 1][0];
-        for (int j = rightmost; j < leftmost; j++) {
-            known.first[j] = true;
-            known.second[j] = false;
+    for (int i = 0; i < m_size; i++) {
+        if (extended_possible_per_place[i].empty()) {
+            known.first[i] = true;
+            known.second[i] = false;
         }
     }
 
@@ -429,8 +417,11 @@ Line::generate_option(const vector<int> &position_indexes, const vector<vector<i
     return move(option);
 }
 
-inline bool Line::check_option_by_required(const vector<int> &required, const vector<bool> &option) {
-    return all_of(required.begin(), required.end(), [&option](int single_required) { return option[single_required]; });
+inline int Line::check_option_by_required(const vector<int> &required, const vector<bool> &option) {
+    for (const int &single_required : required) {
+        if (!option[single_required]) return single_required;
+    }
+    return -1;
 }
 
 void Line::generate_options(const Known &known) {
@@ -448,7 +439,9 @@ void Line::generate_options(const Known &known) {
         return;
     }
 
-    vector<vector<int>> possible_per_number = generate_possible_per_number(known);
+    auto generated_possibilities = generate_possible_per_number(known);
+    vector<vector<int>> &possible_per_number = generated_possibilities.first;
+    vector<set<int>> &extended_possible_per_place = generated_possibilities.second;
 
     // Get known black.
     vector<int> required;
@@ -460,23 +453,39 @@ void Line::generate_options(const Known &known) {
 
     vector<int> iterators(m_numbers.size(), 0);
     int index;
+    int required_filler;
     int generated = 0;
 
     // Generate all options for the line.
     while (true) {
+        bool advanced = false;
         auto option = generate_option(iterators, possible_per_number);
         generated++;
 
-        if (check_option_by_required(required, option)) {
+        int failed_required = check_option_by_required(required, option);
+        if (failed_required == -1) {
             m_options.push_back(move(option));
+        } else {
+            for (required_filler = m_numbers.size() - 1;
+                 (required_filler >= 0) && (possible_per_number[required_filler][iterators[required_filler]] >
+                                            failed_required); required_filler--);
+            if (required_filler < 0) break;
+            if (iterators[required_filler] != possible_per_number[required_filler].size() - 1) {
+                iterators[required_filler]++;
+                advanced = true;
+                index = required_filler + 1;
+            }
         }
 
-        for (index = (int) m_numbers.size() - 1;
-             (index >= 0) && (iterators[index] == possible_per_number[index].size() - 1); index--);
-        if (index < 0) break;
+        if (!advanced) {
+            for (index = (int) m_numbers.size() - 1;
+                 (index >= 0) && (iterators[index] == possible_per_number[index].size() - 1); index--);
+            if (index < 0) break;
 
-        iterators[index]++;
-        index++;
+            iterators[index]++;
+            index++;
+        }
+
         for (; index < m_numbers.size(); index++) {
             int lower_limit = possible_per_number[index - 1][iterators[index - 1]] + m_numbers[index - 1] + 1;
             auto t = lower_bound(possible_per_number[index].begin(), possible_per_number[index].end(), lower_limit);
