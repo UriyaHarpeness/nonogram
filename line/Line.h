@@ -181,6 +181,8 @@ public:
      */
     void reduce_by_blocking_required(vector<vector<int>> &possible_per_number, const vector<int> &required);
 
+    void reduce_by_required_order(vector<vector<int>> &possible_per_number, const vector<int> &required);
+
     /**
      * Reduce by numbers with only one possible position.
      *

@@ -11,3 +11,12 @@ add_executable(nonogram main.cpp
         logging/Logger.h
         nonogram/Nonogram.cpp
         nonogram/Nonogram.h)
+
+add_executable(non tmp.cpp
+        line/Line.cpp
+        line/Line.h
+        logging/debug.h
+        logging/Logger.cpp
+        logging/Logger.h
+        nonogram/Nonogram.cpp
+        nonogram/Nonogram.h)

@@ -223,6 +223,19 @@ void Line::reduce_by_blocking_required(vector<vector<int>> &possible_per_number,
     }
 }
 
+void Line::reduce_by_required_order(vector<vector<int>> &possible_per_number, const vector<int> &required) {
+    for (const auto &single_required : required) {
+        // Remove positions for numbers which conflict with the required blacks.
+        for (int i = 0; i < m_numbers.size(); i++) {
+            possible_per_number[i].erase(
+                    remove_if(possible_per_number[i].begin(), possible_per_number[i].end(), [&](int place) {
+                        return ((place - 1 == single_required) ||
+                                (place + m_numbers[i] == single_required)); // Includes trailing space.
+                    }), possible_per_number[i].end());
+        }
+    }
+}
+
 void Line::reduce_by_single_fit(vector<vector<int>> &possible_per_number) {
     for (int i = 0; i < m_numbers.size(); i++) {
         if (possible_per_number[i].size() == 1) {
@@ -318,6 +331,8 @@ pair<vector<vector<int>>, vector<set<int>>> Line::generate_possible_per_number(c
         reduce_by_order(possible_per_number);
 
         reduce_by_blocking_required(possible_per_number, required);
+
+        reduce_by_required_order(possible_per_number, required);
 
         elements = counts_elements(possible_per_number);
     } while (elements < prev_elements);
@@ -498,6 +513,10 @@ void Line::generate_options(const Known &known) {
                         << get_combinations_number() - generated << " by optimization and "
                         << generated - m_options.size() << " by filtering)" << endl;
 #endif // DEBUG_LOGS
+
+    Logger(DEBUG).get() << "Generated " << m_options.size() << " options (saved "
+                        << get_combinations_number() - generated << " by optimization and "
+                        << generated - m_options.size() << " by filtering)" << endl;
 }
 
 inline bool Line::check_option(const Known &known, const vector<bool> &option) {

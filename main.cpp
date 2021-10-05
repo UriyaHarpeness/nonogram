@@ -43,11 +43,15 @@ int main(int argc, char *argv[]) {
 #if DEBUG_SUMMARY
     Logger(ERROR).get() << endl;
     Logger(ERROR).get() << "Solution" << endl;
-    nonogram.print_board(ERROR, Nonogram::color_black, Nonogram::color_empty, Nonogram::color_unknown);
+    nonogram.print_board(ERROR, "@@", "  ", "??");
 #endif // DEBUG_SUMMARY
 
     // Save the nonogram's solution.
     nonogram.save(output);
+
+    // todo: try to solve 16903, use SAT or something, https://tsionyx.github.io/nono/, https://webpbn.com/?id=16903.
+    // refer to this as well: https://webpbn.com/survey/.
+    // 8137, 21347, 14018.
 
     return 0;
 }
